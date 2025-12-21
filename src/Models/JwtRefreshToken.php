@@ -3,12 +3,13 @@
 namespace Kz370\JwtAuth\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class JwtRefreshToken extends Model
 {
     protected $fillable = [
-        'user_id',
+        'authenticatable_id',
+        'authenticatable_type',
         'token_hash',
         'family_id',
         'device_name',
@@ -31,10 +32,20 @@ class JwtRefreshToken extends Model
         $this->setTable(config('jwt-auth.table_name', 'jwt_refresh_tokens'));
     }
 
+    /**
+     * Get the parent authenticatable model (User, Admin, etc.).
+     */
+    public function authenticatable(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    /**
+     * Alias for authenticatable for compatibility.
+     */
     public function user()
     {
-        $userModel = config('jwt-auth.user_model', 'App\\Models\\User');
-        return $this->belongsTo($userModel, 'user_id');
+        return $this->authenticatable();
     }
 
     /**

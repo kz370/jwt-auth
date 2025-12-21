@@ -60,7 +60,8 @@ class JwtGuard implements Guard
                 // If the token contains a refresh token hash (rth), find the session
                 if (isset($payload['rth']) && method_exists($user, 'withJwtToken')) {
                     $tokenModel = \Kz370\JwtAuth\Models\JwtRefreshToken::where('token_hash', $payload['rth'])
-                        ->where('user_id', $user->getAuthIdentifier())
+                        ->where('authenticatable_id', $user->getAuthIdentifier())
+                        ->where('authenticatable_type', get_class($user))
                         ->first();
                     
                     if ($tokenModel) {

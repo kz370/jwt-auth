@@ -13,7 +13,9 @@ return new class extends Migration
         if (!Schema::hasTable($tableName)) {
             Schema::create($tableName, function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('user_id')->constrained()->onDelete('cascade');
+                $table->unsignedBigInteger('authenticatable_id');
+                $table->string('authenticatable_type');
+
                 $table->string('token_hash', 64)->unique();
                 $table->string('family_id', 64)->index();
                 $table->string('device_name')->nullable();
@@ -24,7 +26,7 @@ return new class extends Migration
                 $table->boolean('is_revoked')->default(false);
                 $table->timestamps();
 
-                $table->index(['user_id', 'is_revoked']);
+                $table->index(['authenticatable_id', 'authenticatable_type'], 'jwt_tokens_user_index');
                 $table->index(['family_id', 'is_revoked']);
             });
         }

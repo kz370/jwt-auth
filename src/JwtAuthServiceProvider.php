@@ -34,7 +34,8 @@ class JwtAuthServiceProvider extends ServiceProvider
             return new JwtAuthManager(
                 $app->make(JwtService::class),
                 $app->make(RefreshTokenService::class),
-                $app['config']->get('jwt-auth')
+                $app['config']->get('jwt-auth'),
+                $app['request']
             );
         });
 
@@ -75,6 +76,8 @@ class JwtAuthServiceProvider extends ServiceProvider
                 CleanupTokensCommand::class,
             ]);
         }
+
+        $this->app->refresh('request', $this->app->make('jwt-auth'), 'setRequest');
 
         $router = $this->app->make(Router::class);
         $router->aliasMiddleware('jwt.auth', JwtAuthenticate::class);

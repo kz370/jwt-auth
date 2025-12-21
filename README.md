@@ -117,6 +117,13 @@ Then protect your routes accordingly:
 Route::middleware('auth:admin-jwt')->get('/admin/profile', ...);
 ```
 
+### How it works
+The package uses a **polymorphic relationship** in the database. Instead of a simple `user_id`, the tokens table contains:
+- `authenticatable_id`: The ID of the record (e.g., 1).
+- `authenticatable_type`: The class name of the model (e.g., `App\Models\Admin`).
+
+This design ensures that sessions are perfectly isolated, even if two different models share the same ID.
+
 > **Note:** Ensure every model used for authentication includes the `HasJwtAuth` trait.
 
 ---
@@ -171,9 +178,9 @@ public function login(Request $request)
     $user = User::where('email', $request->email)->first();
 
     // Replace $user->createToken('...')->plainTextToken with:
-    $tokens = JwtAuth::login($user, [
-        'device_name' => $request->userAgent(),
-    ]);
+    // Simplified: IP and User-Agent are detected automatically
+    // You can just pass the device name as a string:
+    $tokens = JwtAuth::login($user, 'iPhone 15 Pro');
 
     // $tokens content: ['access_token', 'refresh_token', 'expires_in', ...]
     return response()->json($tokens);
@@ -197,13 +204,19 @@ public function login(Request $request)
 {
     $credentials = $request->only('email', 'password');
     
-    // Optional: Pass device metadata for session tracking
-    $deviceInfo = [
-        'device_name' => $request->header('User-Agent'),
-        'ip_address'  => $request->ip(),
-    ];
+    // Choose your preferred syntax:
+    
+    // 1. Fully Automatic (detects IP and UA, sets device to null)
+    $tokens = JwtAuth::attempt($credentials);
 
-    $tokens = JwtAuth::attempt($credentials, $deviceInfo);
+    // 2. Simplified Device Name (detects IP and UA automatically)
+    $tokens = JwtAuth::attempt($credentials, 'iPhone 15 Pro');
+
+    // 3. Full Manual Control
+    $tokens = JwtAuth::attempt($credentials, [
+        'device_name' => 'MacBook Pro',
+        'ip_address'  => '1.1.1.1'
+    ]);
 
     if (!$tokens) {
         return response()->json(['error' => 'Unauthorized'], 401);

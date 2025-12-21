@@ -3,7 +3,7 @@
 namespace Kz370\JwtAuth\Traits;
 
 use Kz370\JwtAuth\Models\JwtRefreshToken;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Carbon\Carbon;
 
 trait HasJwtAuth
@@ -18,11 +18,11 @@ trait HasJwtAuth
     /**
      * Get the refresh tokens for the user.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return \Illuminate\Database\Eloquent\Relations\MorphMany
      */
-    public function jwtTokens(): HasMany
+    public function jwtTokens(): MorphMany
     {
-        return $this->hasMany(JwtRefreshToken::class, 'user_id')
+        return $this->morphMany(JwtRefreshToken::class, 'authenticatable')
             ->where('is_revoked', false)
             ->where('expires_at', '>', Carbon::now());
     }

@@ -5,6 +5,7 @@ namespace Kz370\JwtAuth\Services;
 use Kz370\JwtAuth\Models\JwtRefreshToken;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 class RefreshTokenService
 {
@@ -16,7 +17,7 @@ class RefreshTokenService
     }
 
     public function create(
-        int $userId,
+        Authenticatable $user,
         ?string $deviceName = null,
         ?string $ipAddress = null,
         ?string $userAgent = null,
@@ -28,7 +29,8 @@ class RefreshTokenService
         $ttl = $this->config['refresh_token_ttl'] ?? 7;
 
         $refreshToken = JwtRefreshToken::create([
-            'user_id' => $userId,
+            'authenticatable_id' => $user->getAuthIdentifier(),
+            'authenticatable_type' => get_class($user),
             'token_hash' => $tokenHash,
             'family_id' => $familyId,
             'device_name' => $deviceName,
@@ -86,7 +88,7 @@ class RefreshTokenService
         $oldToken->update(['used_at' => Carbon::now()]);
 
         return $this->create(
-            $oldToken->user_id,
+            $oldToken->authenticatable,
             $oldToken->device_name,
             $ipAddress ?? $oldToken->ip_address,
             $userAgent ?? $oldToken->user_agent,
@@ -112,9 +114,10 @@ class RefreshTokenService
             ->update(['is_revoked' => true]);
     }
 
-    public function revokeAllForUser(int $userId): bool
+    public function revokeAllForUser(Authenticatable $user): bool
     {
-        JwtRefreshToken::where('user_id', $userId)
+        JwtRefreshToken::where('authenticatable_id', $user->getAuthIdentifier())
+            ->where('authenticatable_type', get_class($user))
             ->update(['is_revoked' => true]);
         return true;
     }
@@ -128,17 +131,19 @@ class RefreshTokenService
             return false;
         }
 
-        JwtRefreshToken::where('user_id', $currentToken->user_id)
+        JwtRefreshToken::where('authenticatable_id', $currentToken->authenticatable_id)
+            ->where('authenticatable_type', $currentToken->authenticatable_type)
             ->where('family_id', '!=', $currentToken->family_id)
             ->update(['is_revoked' => true]);
 
         return true;
     }
 
-    public function revokeDevice(int $userId, int $deviceId): bool
+    public function revokeDevice(Authenticatable $user, int $deviceId): bool
     {
         $token = JwtRefreshToken::where('id', $deviceId)
-            ->where('user_id', $userId)
+            ->where('authenticatable_id', $user->getAuthIdentifier())
+            ->where('authenticatable_type', get_class($user))
             ->first();
 
         if (!$token) {
@@ -149,9 +154,10 @@ class RefreshTokenService
         return true;
     }
 
-    public function getActiveDevices(int $userId): array
+    public function getActiveDevices(Authenticatable $user): array
     {
-        return JwtRefreshToken::where('user_id', $userId)
+        return JwtRefreshToken::where('authenticatable_id', $user->getAuthIdentifier())
+            ->where('authenticatable_type', get_class($user))
             ->where('is_revoked', false)
             ->where('expires_at', '>', Carbon::now())
             ->whereNull('used_at')
@@ -169,9 +175,10 @@ class RefreshTokenService
             ->toArray();
     }
 
-    public function enforceMaxDevices(int $userId, int $maxDevices): void
+    public function enforceMaxDevices(Authenticatable $user, int $maxDevices): void
     {
-        $activeFamilies = JwtRefreshToken::where('user_id', $userId)
+        $activeFamilies = JwtRefreshToken::where('authenticatable_id', $user->getAuthIdentifier())
+            ->where('authenticatable_type', get_class($user))
             ->where('is_revoked', false)
             ->where('expires_at', '>', Carbon::now())
             ->whereNull('used_at')
@@ -181,7 +188,7 @@ class RefreshTokenService
             ->values();
 
         if ($activeFamilies->count() >= $maxDevices) {
-            $familiesToRevoke = $activeFamilies->slice($maxDevices - 1);
+            $familiesToRevoke = $activeFamilies->slice($maxDevices);
 
             foreach ($familiesToRevoke as $token) {
                 $this->revokeFamilyByFamilyId($token->family_id);

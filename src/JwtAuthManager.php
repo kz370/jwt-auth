@@ -5,24 +5,28 @@ namespace Kz370\JwtAuth;
 use Kz370\JwtAuth\Services\JwtService;
 use Kz370\JwtAuth\Services\RefreshTokenService;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Http\Request;
 
 class JwtAuthManager
 {
     protected JwtService $jwtService;
     protected RefreshTokenService $refreshTokenService;
     protected array $config;
+    protected ?Request $request;
 
     public function __construct(
         JwtService $jwtService,
         RefreshTokenService $refreshTokenService,
-        array $config
+        array $config,
+        ?Request $request = null
     ) {
         $this->jwtService = $jwtService;
         $this->refreshTokenService = $refreshTokenService;
         $this->config = $config;
+        $this->request = $request;
     }
 
-    public function attempt(array $credentials, array $deviceInfo = []): ?array
+    public function attempt(array $credentials, $deviceInfo = []): ?array
     {
         $userModel = $this->config['user_model'];
         $user = $userModel::where('email', $credentials['email'])->first();
@@ -34,15 +38,22 @@ class JwtAuthManager
         return $this->login($user, $deviceInfo);
     }
 
-    public function login(Authenticatable $user, array $deviceInfo = []): array
+    public function login(Authenticatable $user, $deviceInfo = []): array
     {
-        $this->enforceMaxDevices($user->getAuthIdentifier());
+        $this->enforceMaxDevices($user);
+
+        if (is_string($deviceInfo)) {
+            $deviceInfo = ['device_name' => $deviceInfo];
+        }
+
+        $ipAddress = $deviceInfo['ip_address'] ?? ($this->request ? $this->request->ip() : null);
+        $userAgent = $deviceInfo['user_agent'] ?? ($this->request ? $this->request->userAgent() : null);
 
         $refreshTokenData = $this->refreshTokenService->create(
-            $user->getAuthIdentifier(),
+            $user,
             $deviceInfo['device_name'] ?? null,
-            $deviceInfo['ip_address'] ?? null,
-            $deviceInfo['user_agent'] ?? null
+            $ipAddress,
+            $userAgent
         );
 
         $accessToken = $this->jwtService->generateAccessToken($user, [
@@ -70,12 +81,14 @@ class JwtAuthManager
             $this->refreshTokenService->cleanupExpired();
         }
 
-        $userModel = $this->config['user_model'];
-        $user = $userModel::find($tokenRecord->user_id);
+        $user = $tokenRecord->authenticatable;
 
         if (!$user) {
             return null;
         }
+
+        $ipAddress = $ipAddress ?? ($this->request ? $this->request->ip() : null);
+        $userAgent = $userAgent ?? ($this->request ? $this->request->userAgent() : null);
 
         $newRefreshTokenData = null;
 
@@ -105,9 +118,9 @@ class JwtAuthManager
         return $this->refreshTokenService->revoke($refreshToken);
     }
 
-    public function logoutAll(int $userId): bool
+    public function logoutAll(Authenticatable $user): bool
     {
-        return $this->refreshTokenService->revokeAllForUser($userId);
+        return $this->refreshTokenService->revokeAllForUser($user);
     }
 
     public function logoutOthers(string $currentRefreshToken): bool
@@ -115,14 +128,14 @@ class JwtAuthManager
         return $this->refreshTokenService->revokeOthers($currentRefreshToken);
     }
 
-    public function getDevices(int $userId): array
+    public function getDevices(Authenticatable $user): array
     {
-        return $this->refreshTokenService->getActiveDevices($userId);
+        return $this->refreshTokenService->getActiveDevices($user);
     }
 
-    public function revokeDevice(int $userId, int $deviceId): bool
+    public function revokeDevice(Authenticatable $user, int $deviceId): bool
     {
-        return $this->refreshTokenService->revokeDevice($userId, $deviceId);
+        return $this->refreshTokenService->revokeDevice($user, $deviceId);
     }
 
     public function validateAccessToken(string $token): ?array
@@ -147,7 +160,13 @@ class JwtAuthManager
         return $userModel::find($payload['sub']);
     }
 
-    protected function enforceMaxDevices(int $userId): void
+    public function setRequest(Request $request): self
+    {
+        $this->request = $request;
+        return $this;
+    }
+
+    protected function enforceMaxDevices(Authenticatable $user): void
     {
         $maxDevices = $this->config['max_devices'];
 
@@ -155,6 +174,6 @@ class JwtAuthManager
             return;
         }
 
-        $this->refreshTokenService->enforceMaxDevices($userId, $maxDevices);
+        $this->refreshTokenService->enforceMaxDevices($user, $maxDevices);
     }
 }
