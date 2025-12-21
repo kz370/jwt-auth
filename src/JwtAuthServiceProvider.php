@@ -23,20 +23,38 @@ class JwtAuthServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(JwtService::class, function ($app) {
-            return new JwtService(config('jwt-auth'));
+            return new JwtService($app['config']->get('jwt-auth'));
         });
 
         $this->app->singleton(RefreshTokenService::class, function ($app) {
-            return new RefreshTokenService(config('jwt-auth'));
+            return new RefreshTokenService($app['config']->get('jwt-auth'));
         });
 
         $this->app->singleton('jwt-auth', function ($app) {
             return new JwtAuthManager(
                 $app->make(JwtService::class),
                 $app->make(RefreshTokenService::class),
-                config('jwt-auth')
+                $app['config']->get('jwt-auth')
             );
         });
+
+        // Register the guard configuration into auth.guards early
+        $this->registerGuardInAuth();
+    }
+
+    protected function registerGuardInAuth(): void
+    {
+        $config = $this->app['config'];
+        $guardName = $config->get('jwt-auth.guard_name', 'jwt');
+
+        $guards = $config->get('auth.guards', []);
+
+        if (!isset($guards[$guardName])) {
+            $config->set("auth.guards.{$guardName}", [
+                'driver' => 'jwt',
+                'provider' => 'users',
+            ]);
+        }
     }
 
     public function boot(): void
@@ -62,19 +80,7 @@ class JwtAuthServiceProvider extends ServiceProvider
         $router->aliasMiddleware('jwt.auth', JwtAuthenticate::class);
         $router->aliasMiddleware('jwt.refresh', JwtRefreshToken::class);
 
-        $guardName = config('jwt-auth.guard_name', 'jwt');
-
-        // Automatically inject the guard into the auth configuration
-        $this->app['config']->set("auth.guards.{$guardName}", [
-            'driver' => 'jwt',
-            'provider' => 'users',
-        ]);
-
-        // Optionally set this as the default guard
-        if (config('jwt-auth.override_default_guard', false)) {
-            $this->app['config']->set('auth.defaults.guard', $guardName);
-        }
-
+        // Define the 'jwt' driver for the Auth system
         Auth::extend('jwt', function ($app, $name, array $config) {
             $guard = new JwtGuard(
                 $app->make(JwtService::class),
@@ -86,5 +92,17 @@ class JwtAuthServiceProvider extends ServiceProvider
 
             return $guard;
         });
+
+        // FORCE default guard override if requested
+        $pkgConfig = $this->app['config']->get('jwt-auth');
+        if (isset($pkgConfig['override_default_guard']) && $pkgConfig['override_default_guard'] === true) {
+            $guardName = $pkgConfig['guard_name'] ?? 'jwt';
+
+            // 1. Tell the AuthManager to use this guard as default for this request
+            Auth::shouldUse($guardName);
+
+            // 2. Update the config for components that read it directly
+            $this->app['config']->set('auth.defaults.guard', $guardName);
+        }
     }
 }

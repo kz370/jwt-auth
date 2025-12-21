@@ -13,14 +13,14 @@ trait HasJwtAuth
      *
      * @var \Kz370\JwtAuth\Models\JwtRefreshToken|null
      */
-    protected $currentAccessToken;
+    protected $currentJwtToken;
 
     /**
      * Get the refresh tokens for the user.
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function tokens(): HasMany
+    public function jwtTokens(): HasMany
     {
         return $this->hasMany(JwtRefreshToken::class, 'user_id')
             ->where('is_revoked', false)
@@ -32,9 +32,9 @@ trait HasJwtAuth
      *
      * @return \Kz370\JwtAuth\Models\JwtRefreshToken|null
      */
-    public function currentAccessToken()
+    public function currentJwtToken()
     {
-        return $this->currentAccessToken;
+        return $this->currentJwtToken;
     }
 
     /**
@@ -43,9 +43,9 @@ trait HasJwtAuth
      * @param  \Kz370\JwtAuth\Models\JwtRefreshToken  $accessToken
      * @return $this
      */
-    public function withAccessToken($accessToken)
+    public function withJwtToken($accessToken)
     {
-        $this->currentAccessToken = $accessToken;
+        $this->currentJwtToken = $accessToken;
 
         return $this;
     }

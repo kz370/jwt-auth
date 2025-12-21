@@ -38,13 +38,16 @@ class JwtAuthManager
     {
         $this->enforceMaxDevices($user->getAuthIdentifier());
 
-        $accessToken = $this->jwtService->generateAccessToken($user);
         $refreshTokenData = $this->refreshTokenService->create(
             $user->getAuthIdentifier(),
             $deviceInfo['device_name'] ?? null,
             $deviceInfo['ip_address'] ?? null,
             $deviceInfo['user_agent'] ?? null
         );
+
+        $accessToken = $this->jwtService->generateAccessToken($user, [
+            'rth' => hash('sha256', $refreshTokenData['token'])
+        ]);
 
         return [
             'access_token' => $accessToken,
@@ -74,7 +77,6 @@ class JwtAuthManager
             return null;
         }
 
-        $accessToken = $this->jwtService->generateAccessToken($user);
         $newRefreshTokenData = null;
 
         if ($this->config['rotate_refresh_token']) {
@@ -84,6 +86,10 @@ class JwtAuthManager
                 $userAgent
             );
         }
+
+        $accessToken = $this->jwtService->generateAccessToken($user, [
+            'rth' => hash('sha256', $newRefreshTokenData ? $newRefreshTokenData['token'] : $refreshToken)
+        ]);
 
         return [
             'access_token' => $accessToken,

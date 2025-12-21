@@ -57,6 +57,17 @@ class JwtGuard implements Guard
             $user = $this->provider->retrieveById($payload['sub']);
 
             if ($user) {
+                // If the token contains a refresh token hash (rth), find the session
+                if (isset($payload['rth']) && method_exists($user, 'withJwtToken')) {
+                    $tokenModel = \Kz370\JwtAuth\Models\JwtRefreshToken::where('token_hash', $payload['rth'])
+                        ->where('user_id', $user->getAuthIdentifier())
+                        ->first();
+                    
+                    if ($tokenModel) {
+                        $user->withJwtToken($tokenModel);
+                    }
+                }
+
                 $this->setUser($user);
                 return $user;
             }

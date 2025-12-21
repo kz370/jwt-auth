@@ -52,6 +52,75 @@ php artisan jwt:secret
 
 ---
 
+## 👨‍💻 User Model Setup
+
+To enable session management and token relationships on your User model, add the `HasJwtAuth` trait:
+
+```php
+use Kz370\JwtAuth\Traits\HasJwtAuth;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class User extends Authenticatable
+{
+    use HasJwtAuth;
+    
+    // ...
+}
+```
+
+This trait provides several helper methods:
+- `$user->jwtTokens`: Get all active sessions.
+- `$user->currentJwtToken()`: Get the session model for the current request.
+
+---
+
+## 🎭 Multi-Model & Multi-Guard Support
+
+The package is not limited to the `User` model. You can use it with any Eloquent model (Admins, Customers, etc.) and even manage multiple guards simultaneously.
+
+### 1. Custom Model
+If you only use one model but it's not `App\Models\User`, update your `config/jwt-auth.php`:
+```php
+'user_model' => App\Models\Admin::class,
+```
+
+### 2. Multiple Guards (e.g., User and Admin)
+If you need separate authentication for different tables, define them in `config/auth.php`:
+
+```php
+// config/auth.php
+'guards' => [
+    'jwt' => [
+        'driver' => 'jwt',
+        'provider' => 'users',
+    ],
+    'admin-jwt' => [
+        'driver' => 'jwt',
+        'provider' => 'admins',
+    ],
+],
+
+'providers' => [
+    'users' => [
+        'driver' => 'eloquent',
+        'model' => App\Models\User::class,
+    ],
+    'admins' => [
+        'driver' => 'eloquent',
+        'model' => App\Models\Admin::class,
+    ],
+],
+```
+
+Then protect your routes accordingly:
+```php
+Route::middleware('auth:admin-jwt')->get('/admin/profile', ...);
+```
+
+> **Note:** Ensure every model used for authentication includes the `HasJwtAuth` trait.
+
+---
+
 ## ⚙️ Configuration
 
 ### Automatic Guard Registration
@@ -160,11 +229,16 @@ public function refresh(Request $request)
 ```
 
 #### Logout
-Invalidates the current refresh token and session.
+Invalidates the current refresh token and session. Returns `true` on success, or `false` if the token is invalid/expired.
 ```php
 public function logout(Request $request)
 {
-    JwtAuth::logout($request->refresh_token);
+    $revoked = JwtAuth::logout($request->refresh_token);
+    
+    if (!$revoked) {
+        return response()->json(['message' => 'Invalid or already revoked token'], 401);
+    }
+
     return response()->json(['message' => 'Logged out successfully']);
 }
 ```

@@ -96,8 +96,7 @@ class RefreshTokenService
 
     public function revoke(string $rawToken): bool
     {
-        $tokenHash = hash('sha256', $rawToken);
-        $refreshToken = JwtRefreshToken::where('token_hash', $tokenHash)->first();
+        $refreshToken = $this->validate($rawToken);
 
         if (!$refreshToken) {
             return false;
