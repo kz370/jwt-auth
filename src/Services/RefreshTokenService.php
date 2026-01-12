@@ -26,7 +26,7 @@ class RefreshTokenService
         $rawToken = Str::random(64);
         $tokenHash = hash('sha256', $rawToken);
         $familyId = $familyId ?? Str::uuid()->toString();
-        $ttl = $this->config['refresh_token_ttl'] ?? 7;
+        $ttl = (int) ($this->config['refresh_token_ttl'] ?? 7);
 
         $refreshToken = JwtRefreshToken::create([
             'authenticatable_id' => $user->getAuthIdentifier(),
@@ -66,7 +66,7 @@ class RefreshTokenService
         }
 
         if ($refreshToken->used_at !== null) {
-            $gracePeriod = $this->config['blacklist_grace_period'] ?? 30;
+            $gracePeriod = (int) ($this->config['blacklist_grace_period'] ?? 30);
             $graceExpiry = $refreshToken->used_at->addSeconds($gracePeriod);
 
             if (Carbon::now()->isAfter($graceExpiry)) {

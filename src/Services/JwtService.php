@@ -30,7 +30,7 @@ class JwtService
         ]));
 
         $now = Carbon::now();
-        $ttl = $this->config['access_token_ttl'] ?? 15;
+        $ttl = (int) ($this->config['access_token_ttl'] ?? 15);
 
         $payload = array_merge([
             'iss' => $this->config['issuer'] ?? config('app.url'),
@@ -113,7 +113,7 @@ class JwtService
             }
         }
 
-        $leeway = $this->config['leeway'] ?? 60;
+        $leeway = (int) ($this->config['leeway'] ?? 60);
         $now = Carbon::now()->timestamp;
 
         if (isset($payload['exp']) && ($payload['exp'] + $leeway) < $now) {

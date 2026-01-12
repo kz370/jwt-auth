@@ -64,8 +64,8 @@ class JwtAuthManager
             'access_token' => $accessToken,
             'refresh_token' => $refreshTokenData['token'],
             'token_type' => 'Bearer',
-            'expires_in' => $this->config['access_token_ttl'] * 60,
-            'refresh_expires_in' => $this->config['refresh_token_ttl'] * 24 * 60 * 60,
+            'expires_in' => (int) $this->config['access_token_ttl'] * 60,
+            'refresh_expires_in' => (int) $this->config['refresh_token_ttl'] * 24 * 60 * 60,
         ];
     }
 
@@ -108,8 +108,8 @@ class JwtAuthManager
             'access_token' => $accessToken,
             'refresh_token' => $newRefreshTokenData ? $newRefreshTokenData['token'] : $refreshToken,
             'token_type' => 'Bearer',
-            'expires_in' => $this->config['access_token_ttl'] * 60,
-            'refresh_expires_in' => $this->config['refresh_token_ttl'] * 24 * 60 * 60,
+            'expires_in' => (int) $this->config['access_token_ttl'] * 60,
+            'refresh_expires_in' => (int) $this->config['refresh_token_ttl'] * 24 * 60 * 60,
         ];
     }
 
@@ -168,7 +168,7 @@ class JwtAuthManager
 
     protected function enforceMaxDevices(Authenticatable $user): void
     {
-        $maxDevices = $this->config['max_devices'];
+        $maxDevices = (int) ($this->config['max_devices'] ?? 5);
 
         if ($maxDevices <= 0) {
             return;
