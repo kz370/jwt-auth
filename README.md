@@ -4,7 +4,7 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/kz370/jwt-auth.svg?style=flat-square)](https://packagist.org/packages/kz370/jwt-auth)
 [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
 [![PHP Version](https://img.shields.io/badge/php-%5E8.0-blue.svg?style=flat-square)](https://php.net)
-[![Laravel Version](https://img.shields.io/badge/laravel-%5E9.0%20%7C%20%5E10.0%20%7C%20%5E11.0-red.svg?style=flat-square)](https://laravel.com)
+[![Laravel Version](https://img.shields.io/badge/laravel-%5E10.0%20%7C%20%5E11.0%20%7C%20%5E12.0-red.svg?style=flat-square)](https://laravel.com)
 
 A sophisticated, secure, and developer-friendly JWT authentication package for Laravel. Designed with a dual-token architecture (Access + Refresh tokens) and advanced security features like automatic rotation and replay attack detection.
 
